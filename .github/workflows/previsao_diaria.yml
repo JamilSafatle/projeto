@@ -21,12 +21,13 @@ jobs:
       - name: Instalar Dependências
         run: |
           python -m pip install --upgrade pip
-          # Instalamos apenas o básico e funcional. Adeus pandas_ta!
-          # numpy<2.0.0 é a única regra estrita para o TensorFlow.
+          # Instalação limpa e leve (Sem pandas_ta)
           pip install "numpy<2.0.0" pandas vaderSentiment gnews tensorflow scikit-learn requests
 
       - name: Mover Modelo para a Raiz
-        run: cp models/modelo_cripto.keras .
+        # CORREÇÃO: O arquivo está dentro da pasta CryptoJMPredict
+        run: cp CryptoJMPredict/models/modelo_cripto.keras .
 
       - name: Executar IA de Previsão
-        run: python scripts/prever_criptoia.py
+        # CORREÇÃO: O script também está dentro da pasta CryptoJMPredict
+        run: python CryptoJMPredict/scripts/prever_criptoia.py
