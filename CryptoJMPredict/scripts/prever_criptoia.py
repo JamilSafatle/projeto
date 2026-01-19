@@ -11,8 +11,8 @@ Original file is located at
 # O numpy<2.0.0 é essencial para o TensorFlow não travar no Colab
 !pip install numpy<2.0.0 pandas==2.2.2 pandas_ta vaderSentiment gnews -q
 
+# --- VERSÃO SEM PANDAS_TA (Native Pandas) ---
 import pandas as pd
-import pandas_ta as ta
 import numpy as np
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
@@ -22,23 +22,34 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import requests
 import os
 
+def calcular_rsi(series, period=14):
+    """Calcula RSI manualmente usando Pandas puro"""
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).fillna(0)
+    loss = (-delta.where(delta < 0, 0)).fillna(0)
+    
+    # Média Móvel Exponencial (Padrão do RSI)
+    avg_gain = gain.ewm(com=period-1, min_periods=period).mean()
+    avg_loss = loss.ewm(com=period-1, min_periods=period).mean()
+    
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
 def pipeline_previsao_final():
-    print("--- 🚀 INICIANDO SISTEMA DE PREVISÃO AUTOMÁTICA (V3 - CORRIGIDO) ---")
-
-    # ==============================================================================
-    # 1. COLETA DE DADOS DE MERCADO
-    # ==============================================================================
-    print("\n1. Baixando dados de mercado frescos (CoinGecko)...")
+    print("--- 🚀 INICIANDO SISTEMA (V4 - PANDAS NATIVO) ---")
+    
+    # 1. COLETA DE DADOS
+    print("\n1. Baixando dados (CoinGecko)...")
     url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
-    params = {'vs_currency': 'usd', 'days': '365', 'interval': 'daily'}
-
+    params = {'vs_currency': 'usd', 'days': '365', 'interval': 'daily'} 
+    
     try:
         resp = requests.get(url, params=params)
         data = resp.json()
-
         prices = data['prices']
         volumes = data['total_volumes']
-
+        
         lista = []
         for i in range(len(prices)):
             ts = prices[i][0]
@@ -46,110 +57,82 @@ def pipeline_previsao_final():
             vol = volumes[i][1] if i < len(volumes) else 0
             date = datetime.fromtimestamp(ts/1000).strftime('%Y-%m-%d')
             lista.append([date, price, vol])
-
+            
         df = pd.DataFrame(lista, columns=['Data', 'Preco_Fechamento', 'Volume'])
         df['Data'] = pd.to_datetime(df['Data'])
         df.set_index('Data', inplace=True)
-
+        
     except Exception as e:
-        print(f"Erro na API CoinGecko: {e}")
+        print(f"Erro CoinGecko: {e}")
         return
 
-    # ==============================================================================
-    # 2. COLETA DE SENTIMENTO
-    # ==============================================================================
-    print("2. Analisando sentimento das notícias de hoje...")
-    google_news = GNews(language='en', country='US', period='2d', max_results=10)
-    news = google_news.get_news("Bitcoin crypto price")
-
-    analyzer = SentimentIntensityAnalyzer()
-    scores = []
-
-    for item in news:
-        try:
-            score = analyzer.polarity_scores(item['title'])['compound']
-            scores.append(score)
-        except:
-            continue
-
-    sentimento_hoje = np.mean(scores) if len(scores) > 0 else 0
-    print(f"   -> Sentimento Médio Hoje: {sentimento_hoje:.4f}")
-
-    # ==============================================================================
-    # 3. ENGENHARIA DE FEATURES (AQUI ESTAVA O ERRO)
-    # ==============================================================================
-    print("3. Calculando indicadores técnicos...")
-
-    # CORREÇÃO: Usamos a forma direta, passando a coluna 'Preco_Fechamento'
-    # Assim o pandas_ta não se perde procurando 'close'
-    df['SMA_7'] = ta.sma(df['Preco_Fechamento'], length=7)
-    df['SMA_21'] = ta.sma(df['Preco_Fechamento'], length=21)
-    df['RSI'] = ta.rsi(df['Preco_Fechamento'], length=14)
-
-    # Adicionar sentimento (Preenchemos histórico com 0, hoje com valor real)
-    df['Sentimento_Medio'] = 0
-
-    # Inserir o sentimento na última linha
+    # 2. SENTIMENTO
+    print("2. Analisando Notícias...")
+    try:
+        google_news = GNews(language='en', country='US', period='2d', max_results=10) 
+        news = google_news.get_news("Bitcoin crypto price")
+        analyzer = SentimentIntensityAnalyzer()
+        scores = [analyzer.polarity_scores(i['title'])['compound'] for i in news]
+        sentimento_hoje = np.mean(scores) if scores else 0
+    except:
+        sentimento_hoje = 0
+    
+    print(f"   -> Sentimento Hoje: {sentimento_hoje:.4f}")
+    
+    # 3. FEATURES (SEM PANDAS_TA)
+    print("3. Calculando Indicadores (Matemática Nativa)...")
+    
+    # Média Móvel Simples (SMA)
+    df['SMA_7'] = df['Preco_Fechamento'].rolling(window=7).mean()
+    df['SMA_21'] = df['Preco_Fechamento'].rolling(window=21).mean()
+    
+    # RSI (Função Manual)
+    df['RSI'] = calcular_rsi(df['Preco_Fechamento'])
+    
+    # Sentimento
+    df['Sentimento_Medio'] = 0 
     if not df.empty:
         df.iloc[-1, df.columns.get_loc('Sentimento_Medio')] = sentimento_hoje
-
-    # Remover dias que ficaram vazios por causa do cálculo das médias
+    
     df.dropna(inplace=True)
 
-    # ==============================================================================
-    # 4. PREPARAÇÃO PARA IA
-    # ==============================================================================
+    # 4. PREPARAÇÃO
     features = ['Preco_Fechamento', 'Volume', 'SMA_7', 'SMA_21', 'RSI', 'Sentimento_Medio']
-
-    # Verificação de segurança
-    missing_cols = [col for col in features if col not in df.columns]
-    if missing_cols:
-        print(f"Erro Crítico: Faltam colunas: {missing_cols}")
+    
+    # Garantir que colunas existem
+    if not all(col in df.columns for col in features):
+        print("Erro: Colunas faltando.")
         return
 
     data_values = df[features].values
-
-    # Normalização
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(data_values)
-
-    # Pegar os últimos 60 dias
-    if len(scaled_data) < 60:
-        print("Erro: Não há dados suficientes (menos de 60 dias após limpeza).")
-        return
-
+    
     last_60_days = scaled_data[-60:]
     X_input = last_60_days.reshape(1, 60, 6)
-
-    # ==============================================================================
-    # 5. CARREGAR MODELO E PREVER
-    # ==============================================================================
-    print("4. Invocando o Modelo (IA)...")
-    try:
-        model = load_model('modelo_cripto.keras')
-    except:
-        print("Erro: 'modelo_cripto.keras' não encontrado. Faça upload na barra lateral.")
+    
+    # 5. PREVISÃO
+    print("4. Executando IA...")
+    if not os.path.exists('modelo_cripto.keras'):
+        print("Erro: Modelo não encontrado.")
         return
-
+        
+    model = load_model('modelo_cripto.keras')
     prediction_scaled = model.predict(X_input, verbose=0)
-
-    # Desnormalizar
+    
     matriz_aux = np.zeros((1, 6))
-    matriz_aux[:, 0] = prediction_scaled[:, 0]
+    matriz_aux[:, 0] = prediction_scaled[:, 0] 
     prediction_usd = scaler.inverse_transform(matriz_aux)[0, 0]
-
+    
     preco_atual = df['Preco_Fechamento'].iloc[-1]
-
-    print("\n" + "="*50)
-    print(f"📅 DATA DO DADO: {df.index[-1].strftime('%d/%m/%Y')}")
-    print(f"💰 PREÇO ATUAL:  ${preco_atual:,.2f}")
-    print(f"🔮 PREVISÃO:     ${prediction_usd:,.2f}")
-    print("="*50)
-
     delta = ((prediction_usd - preco_atual) / preco_atual) * 100
     direcao = "SUBIR 📈" if delta > 0 else "CAIR 📉"
 
-    print(f"A IA acredita que o Bitcoin vai {direcao} ({delta:.2f}%)")
+    print("\n" + "="*40)
+    print(f"💰 PREÇO ATUAL: ${preco_atual:,.2f}")
+    print(f"🔮 PREVISÃO:    ${prediction_usd:,.2f}")
+    print(f"DIREÇÃO: {direcao} ({delta:.2f}%)")
+    print("="*40)
 
 if __name__ == "__main__":
     pipeline_previsao_final()
