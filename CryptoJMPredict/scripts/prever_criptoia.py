@@ -7,10 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1rd8IA2RG37pfrX8EQYkqDTtQ3EtXjje-
 """
 
-# --- INSTALAÇÃO DE VERSÕES COMPATÍVEIS ---
-# O numpy<2.0.0 é essencial para o TensorFlow não travar no Colab
-!pip install numpy<2.0.0 pandas==2.2.2 pandas_ta vaderSentiment gnews -q
-
 # --- VERSÃO SEM PANDAS_TA (Native Pandas) ---
 import pandas as pd
 import numpy as np
