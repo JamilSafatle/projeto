@@ -2,8 +2,8 @@ name: Previsão Diária Bitcoin
 
 on:
   schedule:
-    - cron: '0 9 * * *' # Roda todo dia às 09:00 UTC
-  workflow_dispatch: # Botão manual
+    - cron: '0 9 * * *'
+  workflow_dispatch:
 
 jobs:
   run-prediction:
@@ -16,14 +16,17 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11' # MUDANÇA 1: Atualizado para 3.11 para aceitar bibliotecas novas
+          # Voltamos para o 3.10, pois é o único onde o pandas_ta funciona bem
+          python-version: '3.10' 
 
       - name: Instalar Dependências
         run: |
-          python -m pip install --upgrade pip
-          # MUDANÇA 2: Removemos 'pandas==2.2.2' e deixamos só 'pandas'. 
-          # Isso deixa o pip escolher a melhor versão que funcione com o pandas_ta.
-          pip install "numpy<2.0.0" pandas pandas_ta vaderSentiment gnews tensorflow scikit-learn requests
+          python -m pip install --upgrade pip setuptools wheel
+          # AQUI ESTÁ O SEGREDO:
+          # 1. numpy<2.0.0: Para o TensorFlow não travar
+          # 2. pandas<2.2.0: Para funcionar no Python 3.10 sem erros
+          # 3. setuptools: Instalado acima, essencial para o pandas_ta
+          pip install "numpy<2.0.0" "pandas<2.2.0" pandas_ta vaderSentiment gnews tensorflow scikit-learn requests
 
       - name: Mover Modelo para a Raiz
         run: cp models/modelo_cripto.keras .
