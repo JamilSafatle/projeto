@@ -10,18 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Baixar o TEU código (Projeto)
-      - name: Checkout do Teu Projeto
+      - name: Checkout do Repositório
         uses: actions/checkout@v3
-
-      # 2. SOLUÇÃO FINAL: Baixar a biblioteca pandas-ta usando a ferramenta oficial
-      # Isso evita erros de link, erros de senha e erros de versão.
-      - name: Baixar Pandas TA (Modo VIP)
-        uses: actions/checkout@v3
-        with:
-          repository: twopirllc/pandas-ta
-          ref: development
-          path: pandas_ta_lib
 
       - name: Configurar Python
         uses: actions/setup-python@v4
@@ -30,17 +20,10 @@ jobs:
 
       - name: Instalar Dependências
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          
-          # 1. Bases compatíveis
-          pip install "numpy<2.0.0" "pandas<2.2.0"
-          
-          # 2. Instalar a biblioteca que baixamos no passo 2
-          # O pip instala direto da pasta que o GitHub baixou para nós
-          pip install ./pandas_ta_lib
-          
-          # 3. Resto das ferramentas
-          pip install vaderSentiment gnews tensorflow scikit-learn requests
+          python -m pip install --upgrade pip
+          # Instalamos apenas o básico e funcional. Adeus pandas_ta!
+          # numpy<2.0.0 é a única regra estrita para o TensorFlow.
+          pip install "numpy<2.0.0" pandas vaderSentiment gnews tensorflow scikit-learn requests
 
       - name: Mover Modelo para a Raiz
         run: cp models/modelo_cripto.keras .
