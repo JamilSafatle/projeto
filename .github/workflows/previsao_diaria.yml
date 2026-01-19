@@ -16,16 +16,15 @@ jobs:
       - name: Configurar Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11' # MUDANÇA 1: Atualizado para 3.11 para aceitar bibliotecas novas
 
       - name: Instalar Dependências
         run: |
           python -m pip install --upgrade pip
-          # CORREÇÃO: Adicionamos aspas " " para o Linux não confundir o símbolo <
-          pip install "numpy<2.0.0" pandas==2.2.2 pandas_ta vaderSentiment gnews tensorflow scikit-learn requests
+          # MUDANÇA 2: Removemos 'pandas==2.2.2' e deixamos só 'pandas'. 
+          # Isso deixa o pip escolher a melhor versão que funcione com o pandas_ta.
+          pip install "numpy<2.0.0" pandas pandas_ta vaderSentiment gnews tensorflow scikit-learn requests
 
-      # NOVO PASSO: O teu script procura o 'modelo_cripto.keras' na pasta atual.
-      # Como guardaste na pasta 'models', precisamos copiá-lo para a raiz antes de rodar.
       - name: Mover Modelo para a Raiz
         run: cp models/modelo_cripto.keras .
 
