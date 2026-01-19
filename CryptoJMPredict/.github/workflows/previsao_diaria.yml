@@ -1,0 +1,37 @@
+name: Previsão Diária Bitcoin
+
+# GATILHOS (Quando deve rodar?)
+on:
+  schedule:
+    # Roda todos os dias às 09:00 da manhã (horário UTC)
+    # Podes ajustar o horário mudando o '9'
+    - cron: '0 9 * * *'
+  
+  # Permite que cliques num botão "Run" para testar agora mesmo
+  workflow_dispatch:
+
+jobs:
+  run-prediction:
+    runs-on: ubuntu-latest # O computador da nuvem (Linux)
+
+    steps:
+      # 1. Baixar o teu código do repositório
+      - name: Checkout do Repositório
+        uses: actions/checkout@v3
+
+      # 2. Instalar o Python
+      - name: Configurar Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # 3. Instalar as bibliotecas (Igual fizemos no Colab)
+      - name: Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy<2.0.0 pandas==2.2.2 pandas_ta vaderSentiment gnews tensorflow scikit-learn requests
+
+      # 4. Rodar o Script de Previsão
+      # O sistema vai procurar o arquivo na pasta 'scripts'
+      - name: Executar IA de Previsão
+        run: python scripts/prever_criptoia.py
