@@ -120,15 +120,36 @@ def pipeline_previsao_final():
     matriz_aux[:, 0] = prediction_scaled[:, 0] 
     prediction_usd = scaler.inverse_transform(matriz_aux)[0, 0]
     
+    # --- NOVA LÓGICA DE DECISÃO (ZONA NEUTRA) ---
     preco_atual = df['Preco_Fechamento'].iloc[-1]
-    delta = ((prediction_usd - preco_atual) / preco_atual) * 100
-    direcao = "SUBIR 📈" if delta > 0 else "CAIR 📉"
+    
+    # Calcula a variação percentual
+    delta_percentual = ((prediction_usd - preco_atual) / preco_atual) * 100
+    
+    # Definição de Limiar (Threshold) de 0.5%
+    # Se mudar menos que 0.5%, consideramos o mercado indeciso.
+    limiar = 0.5 
+
+    if delta_percentual > limiar:
+        direcao = "SUBIR 📈 (Tendência Alta)"
+        cor_log = "VERDE"
+    elif delta_percentual < -limiar:
+        direcao = "CAIR 📉 (Tendência Baixa)"
+        cor_log = "VERMELHO"
+    else:
+        direcao = "LATERAL 😐 (Mercado Neutro)"
+        cor_log = "AMARELO"
 
     print("\n" + "="*40)
-    print(f"💰 PREÇO ATUAL: ${preco_atual:,.2f}")
-    print(f"🔮 PREVISÃO:    ${prediction_usd:,.2f}")
-    print(f"DIREÇÃO: {direcao} ({delta:.2f}%)")
+    print(f"💰 PREÇO ATUAL (Hoje):   ${preco_atual:,.2f}")
+    print(f"🔮 PREVISÃO (Amanhã):    ${prediction_usd:,.2f}")
+    print("-" * 40)
+    print(f"📊 VARIAÇÃO: {delta_percentual:+.2f}%")
+    print(f"🧭 VEREDITO: {direcao}")
     print("="*40)
+
+    # Dica para Debug: Salvar log para ver se o modelo não está apenas copiando o valor
+    print(f"[DEBUG] Diferença absoluta: ${prediction_usd - preco_atual:.2f}")
 
 if __name__ == "__main__":
     pipeline_previsao_final()
